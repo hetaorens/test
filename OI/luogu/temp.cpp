@@ -1,59 +1,109 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
-using namespace std;
-int getmaxgold(int n, int m, int k, const vector<string> &vec, const vector<vector<int>> &gold)
+#include <sstream>
+#include <cmath>
+// 定义轨迹数据采样点的结构
+struct Point
 {
-    vector<vector<int>> dp(n, vector<int>(m, 0));
-    int maxgold = 0;
-    dp[0][0] = 0;
-    if (n > 1)
-        dp[1][0] = gold[1][0] - (vec[0][0] == vec[1][0] ? 0 : k);
-    if (m > 1)
-        dp[0][1] = gold[0][1] - (vec[0][0] == vec[0][1] ? 0 : k);
+    int OID;
+    int timestamp;
+    double longitude;
+    double latitude;
+};
 
-    for (int j = 1; j < m; j++)
-    {
-        dp[0][j] = gold[0][j] + dp[0][j - 1] - (vec[0][j] == vec[0][j - 1] ? 0 : k);
-        maxgold = max(maxgold, dp[0][j]);
-    }
+// 定义对象类定义轨迹数据类
+class Object
+{
+public:
+    int ID;
+    std::vector<Point> trajectory;
 
-    for (int i = 1; i < n; i++)
-    {
-        dp[i][0] = gold[i][0] + dp[i - 1][0] - (vec[i][0] == vec[i - 1][0] ? 0 : k);
-        maxgold = max(maxgold, dp[i][0]);
+    Object(int id) : ID(id) {}
+};
 
-        for (int j = 1; j < m; j++)
-        {
-            dp[i][j] = max(dp[i][j - 1] - (vec[i][j] == vec[i][j - 1] ? 0 : k),
-                           dp[i - 1][j] - (vec[i][j] == vec[i - 1][j] ? 0 : k)) +
-                       gold[i][j];
-            maxgold = max(maxgold, dp[i][j]);
-        }
-    }
-
-    return maxgold;
+// 计算两个点之间的距离
+double calculateDistance(const Point &p1, const Point &p2)
+{
+    double dlon = p2.longitude - p1.longitude;
+    double dlat = p2.latitude - p1.latitude;
+    return std::sqrt(dlon * dlon + dlat * dlat);
 }
 
+// 密接模式挖掘函数
+
+void mineCloseContacts(const std::vector<Object> &objects, int sourceID, double alpha, double beta)
+{
+    //密接模式挖掘函数????
+    //
+    //
+    //
+    const Object &source = objects[sourceID];
+    std::vector<int> closeContacts;
+
+    std::cout << "Close contacts for object " << sourceID << ":\n";
+    for (int contact : closeContacts)
+    {
+        std::cout << contact << " ";
+    }
+    std::cout << std::endl;
+}
+
+// 主函数
 int main()
 {
-    int n, m, k;
-    cin >> n >> m >> k;
-    vector<string> vec(n);
-    for (int i = 0; i < n; i++)
+    // 读取数据集文件
+    std::ifstream inputFile("data.txt");
+    if (!inputFile.is_open())
     {
-        cin >> vec[i];
+        std::cerr << "Failed to open data file!" << std::endl;
+        return 1;
     }
-
-    vector<vector<int>> gold(n, vector<int>(m));
-    for (int i = 0; i < n; i++)
+    std::vector<Object> objects;
+    int numObjects = 0;
+    objects[0].trajectory.push_back({0, 0, 0, 0});
+    std::string line;
+    while (std::getline(inputFile, line))
     {
-        for (int j = 0; j < m; j++)
+        std::istringstream iss(line);
+        std::string token;
+        std::vector<std::string> tokens;
+
+        while (std::getline(iss, token, ','))
         {
-            cin >> gold[i][j];
+            tokens.push_back(token);
         }
-    }
 
-    cout << getmaxgold(n, m, k, vec, gold);
+        if (tokens.size() != 4)
+        {
+            std::cerr << "Invalid data format!" << std::endl;
+            return 1;
+        }
+
+        int objectID = std::stoi(tokens[0]);
+        int timestamp = std::stoi(tokens[1]);
+        double longitude = std::stod(tokens[2]);
+        double latitude = std::stod(tokens[3]);
+
+        if (objectID > numObjects)
+        {
+            objects.emplace_back(objectID);
+            numObjects = objectID;
+        }
+
+        objects[objectID].trajectory.push_back({objectID, timestamp, longitude, latitude});
+    }
+    inputFile.close();
+
+    // 测试参数
+    int sourceID1 = 121;
+    int sourceID2 = 436;
+    double alpha = 3;
+    double beta = 400;
+
+    // 挖掘与给定感染源之间存在密接关系的对象
+    mineCloseContacts(objects, sourceID1, alpha, beta);
+    mineCloseContacts(objects, sourceID2, alpha, beta);
 
     return 0;
 }
