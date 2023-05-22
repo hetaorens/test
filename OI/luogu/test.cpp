@@ -1,14 +1,38 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
+#include <sstream>
 #define _USE_MATH_DEFINES
 #include <cmath>
+#include <algorithm>
+
 #include <random>
+using namespace std;
+
+// 定义轨迹数据采样点的结构
+struct Point
+{
+    int OID;
+    int timestamp;
+    double longitude;
+    double latitude;
+};
+
+// 定义对象类定义轨迹数据类
+class Object
+{
+public:
+    int ID;
+    std::vector<Point> trajectory;
+
+    Object(int id) : ID(id) {}
+};
 
 // 极坐标对象
 struct PolarVector
 {
     double radius; // 半径
-    double angle;  // 角度弧度制
+    double angle;  // 角度
     PolarVector(double r, double a) : radius(r), angle(a) {}
 };
 // 直角坐标向量
@@ -41,7 +65,6 @@ double operator*(const PolarVector &a, const PolarVector &b)
     // 直角坐标系下的向量乘法
     return x1 * x2 + y1 * y2;
 }
-
 // 将平面坐标转换为极坐标
 PolarVector convertToPolar(const CartesianVector &cartesianVector)
 {
@@ -68,48 +91,33 @@ double calculateH(const PolarVector &a, const PolarVector &p, double D)
     return h;
 }
 
-int main()
+void to_mat(const vector<Object> objects, const double D)
 {
-
-    const double D = 1.0;
-    // 定义对象列表
-    std::vector<std::vector<std::pair<double, double>>> objects = {
-        {{1.0, 2.0}, {3.0, 4.0}},   // 对象1的坐标列表
-        {{5.0, 6.0}, {7.0, 8.0}},   // 对象2的坐标列表
-        {{9.0, 10.0}, {11.0, 12.0}} // 对象3的坐标列表
-        // 可根据需要添加更多对象和坐标
-    };
-
-    // 定义存储参数的向量列表
-    std::vector<std::vector<std::vector<double>>> parameters;
 
     // 设置随机数生成器
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<double> angleDist(0.0, 180.0);
-
-    // 遍历每个对象的坐标
+    // 定义存储参数的向量列表
+    std::vector<std::vector<std::vector<double>>> parameters;
     for (const auto &object : objects)
     {
         // 存储当前对象的参数列表
         std::vector<std::vector<double>> objectParameters;
 
         // 遍历当前对象的每个坐标
-        for (const auto &coordinate : object)
+        for (const auto &coordinate : object.trajectory)
         {
             // 随机选择m个单位向量，并计算参数
             int m = 4; // 调整m的值根据需要
             std::vector<double> coordinateParameters;
-            double firstangle=angleDist(gen)/180*M_PI;
+            double firstangle = angleDist(gen) / 180 * M_PI;
+            double step = (M_PI / (m));
             for (int i = 0; i < m; ++i)
             {
 
                 // 调用函数h()计算结果
-                double result = calculateH(PolarVector(1.0,firstangle+(M_PI/(m)*i)), convertToPolar(CartesianVector(coordinate.first, coordinate.second)), D);
-
-                // 存储参数和计算结果
-                // coordinateParameters.push_back(parameter1);
-                // coordinateParameters.push_back(parameter2);
+                double result = calculateH(PolarVector(1.0, firstangle + step * i), convertToPolar(CartesianVector(coordinate.longitude, coordinate.latitude)), D);
                 coordinateParameters.push_back(result);
             }
 
@@ -128,12 +136,60 @@ int main()
         {
             for (const auto &parameter : coordinateParameters)
             {
-                std::cout << parameter << " ";
+                std::cout << parameter << ",";
             }
             std::cout << std::endl;
         }
         std::cout << std::endl;
     }
+}
 
+// 主函数
+int main()
+{
+    // 读取数据集文件
+
+    std::ifstream inputFile("data.txt");
+    if (!inputFile.is_open())
+    {
+        std::cerr << "Failed to open data file!" << std::endl;
+        return 1;
+    }
+
+    int numObjects = 0;
+    std::vector<Object> objects;
+    objects.emplace_back(0);
+    std::string line;
+    while (std::getline(inputFile, line))
+    {
+        std::istringstream iss(line);
+        std::string token;
+        std::vector<std::string> tokens;
+
+        while (std::getline(iss, token, ','))
+        {
+
+            tokens.push_back(token);
+            // cout << token << endl;
+        }
+        if (tokens.size() != 4)
+        {
+            std::cerr << "Invalid data format!" << std::endl;
+            return 1;
+        }
+        int objectID = std::stoi(tokens[0]);
+        int timestamp = std::stoi(tokens[1]);
+        double longitude = std::stod(tokens[2]);
+        double latitude = std::stod(tokens[3]);
+        if (objectID != numObjects)
+        {
+            objects.push_back(objectID);
+            numObjects = objectID;
+        }
+        objects[objectID].trajectory.push_back({objectID, timestamp, longitude, latitude});
+    }
+    inputFile.close();
+    cout << objects.size() << endl;
+    to_mat(objects, 1);
     return 0;
 }
